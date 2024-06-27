@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Selección de Índice de Array</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #gameCanvas { display: block; }
+        #info, #timer, #message, #instructions, #finalMessage {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: black;
+            z-index: 10;
+        }
+        #info { top: 10px; }
+        #timer { top: 40px; font-size: 24px; }
+        #message { top: 70px; font-size: 24px; font-weight: bold; }
+        #instructions, #finalMessage {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        #finalMessage {
+            display: none;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="info">Selecciona el valor correcto del array por su índice</div>
+    <div id="timer"></div>
+    <div id="message"></div>
+    <div id="instructions">
+        <h2>Instrucciones</h2>
+        <p>1. Verás una fila de cajas verdes con números.</p>
+        <p>2. Se te pedirá que encuentres el valor en un índice específico.</p>
+        <p>3. Haz clic en la caja correcta para avanzar al siguiente nivel.</p>
+        <p>4. Tienes 30 segundos para cada nivel.</p>
+        <p>5. Si cometes un error o se acaba el tiempo, el juego se reiniciará.</p>
+        <button onclick="startGame()">Comenzar Juego</button>
+    </div>
+    <div id="finalMessage"></div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startingSquares = 5;
+        const maxLevels = 5;
+        let squares = [], array = [], currentIndex, currentLevel = 1, timeLeft, timerInterval;
+
+        function startGame() {
+            document.getElementById('instructions').style.display = 'none';
+            resizeCanvas();
+            initLevel();
+        }
+
+        function initLevel() {
+            const squareCount = startingSquares + currentLevel - 1;
+            array = Array.from({length: squareCount}, () => Math.floor(Math.random() * 10));
+            currentIndex = Math.floor(Math.random() * array.length);
+            timeLeft = 30;
+
+            const squareSize = Math.min(canvas.width / squareCount, canvas.height / 3);
+            const startX = (canvas.width - squareSize * squareCount) / 2;
+            const startY = canvas.height / 2 - squareSize / 2;
+
+            squares = array.map((value, i) => ({
+                x: startX + i * squareSize,
+                y: startY,
+                size: squareSize,
+                value: value,
+                color: '#00ff00'
+            }));
+
+            document.getElementById('info').innerHTML = `Nivel ${currentLevel}: Encuentra el valor en el índice ${currentIndex}`;
+            document.getElementById('message').innerHTML = '';
+            startTimer();
+            drawSquares();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerHTML = `Tiempo: ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showMessage('¡Se acabó el tiempo!', true);
+                }
+            }, 1000);
+        }
+
+        function showMessage(text, isError) {
+            const messageEl = document.getElementById('message');
+            messageEl.innerHTML = text;
+            messageEl.style.color = isError ? 'red' : 'green';
+            if (isError) {
+                setTimeout(() => {
+                    messageEl.innerHTML = '';
+                    restartGame();
+                }, 2000);
+            }
+        }
+
+        function restartGame() {
+            currentLevel = 1;
+            initLevel();
+        }
+
+        function drawSquares() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            squares.forEach(square => {
+                ctx.fillStyle = square.color;
+                ctx.fillRect(square.x, square.y, square.size, square.size);
+                ctx.fillStyle = 'black';
+                ctx.font = `${square.size / 2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(square.value, square.x + square.size / 2, square.y + square.size / 2);
+            });
+        }
+
+        function onCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            squares.forEach((square, index) => {
+                if (x > square.x && x < square.x + square.size && y > square.y && y < square.y + square.size) {
+                    if (index === currentIndex) {
+                        square.color = '#0000ff';
+                        drawSquares();
+                        if (currentLevel < maxLevels) {
+                            currentLevel++;
+                            showMessage('¡Correcto! Siguiente nivel...', false);
+                            setTimeout(initLevel, 1000);
+                        } else {
+                            showFinalMessage();
+                        }
+                    } else {
+                        square.color = '#ff0000';
+                        drawSquares();
+                        showMessage('Elección incorrecta. Juego terminado.', true);
+                        canvas.removeEventListener('click', onCanvasClick);
+                        setTimeout(() => {
+                            restartGame();
+                            canvas.addEventListener('click', onCanvasClick);
+                        }, 2000);
+                    }
+                }
+            });
+        }
+
+        function showFinalMessage() {
+            clearInterval(timerInterval);
+            const finalMessageEl = document.getElementById('finalMessage');
+            finalMessageEl.innerHTML = `
+                <h2>¡Felicidades!</h2>
+                <p>Has completado todos los niveles del juego.</p>
+                <p>Gracias por jugar.</p>
+                <button onclick="restartGame(); document.getElementById('finalMessage').style.display='none';">Jugar de nuevo</button>
+            `;
+            finalMessageEl.style.display = 'block';
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (currentLevel <= maxLevels) {
+                initLevel();
+            }
+        });
+
+        canvas.addEventListener('click', onCanvasClick);
+
+        resizeCanvas();
+    </script>
+</body>
+</html>

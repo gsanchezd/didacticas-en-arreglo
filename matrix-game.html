@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Selección de Índice de Matriz</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+        #gameCanvas { display: block; }
+        #topBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            text-align: center;
+        }
+        #info, #timer, #message {
+            margin: 5px 0;
+        }
+        #message {
+            font-weight: bold;
+            height: 24px; /* Fixed height to prevent layout shifts */
+        }
+        #instructions, #finalMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        #finalMessage {
+            display: none;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div id="topBar">
+        <div id="info">Selecciona el valor correcto de la matriz por sus índices</div>
+        <div id="timer"></div>
+        <div id="message"></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="instructions">
+        <h2>Instrucciones</h2>
+        <p>1. Verás una matriz de números.</p>
+        <p>2. Se te pedirá que encuentres el valor en una fila y columna específicas.</p>
+        <p>3. Haz clic en la celda correcta para avanzar al siguiente nivel.</p>
+        <p>4. Recuerda: los índices comienzan en 0.</p>
+        <p>5. Tienes 30 segundos para cada nivel.</p>
+        <p>6. Si cometes un error o se acaba el tiempo, el juego se reiniciará.</p>
+        <button onclick="startGame()">Comenzar Juego</button>
+    </div>
+    <div id="finalMessage"></div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const maxLevels = 5;
+        let matrix = [], currentRow, currentCol, currentLevel = 1, timeLeft, timerInterval;
+        let cellSize, startX, startY;
+
+        function startGame() {
+            document.getElementById('instructions').style.display = 'none';
+            resizeCanvas();
+            initLevel();
+        }
+
+        function initLevel() {
+            const matrixSize = currentLevel + 2; // Start with 3x3 and increase
+            matrix = Array.from({ length: matrixSize }, () => 
+                Array.from({ length: matrixSize }, () => Math.floor(Math.random() * 10))
+            );
+            currentRow = Math.floor(Math.random() * matrixSize);
+            currentCol = Math.floor(Math.random() * matrixSize);
+            timeLeft = 30;
+
+            document.getElementById('info').innerHTML = `Nivel ${currentLevel}: Encuentra el valor en la fila ${currentRow}, columna ${currentCol}`;
+            document.getElementById('message').innerHTML = '';
+            startTimer();
+            drawMatrix();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerHTML = `Tiempo: ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showMessage('¡Se acabó el tiempo!', true);
+                }
+            }, 1000);
+        }
+
+        function showMessage(text, isError) {
+            const messageEl = document.getElementById('message');
+            messageEl.innerHTML = text;
+            messageEl.style.color = isError ? 'red' : 'green';
+            if (isError) {
+                setTimeout(() => {
+                    messageEl.innerHTML = '';
+                    restartGame();
+                }, 2000);
+            }
+        }
+
+        function restartGame() {
+            currentLevel = 1;
+            initLevel();
+        }
+
+        function drawMatrix() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            cellSize = Math.min(canvas.width, canvas.height - 100) / (matrix.length + 1);
+            startX = (canvas.width - cellSize * matrix.length) / 2;
+            startY = ((canvas.height - 100) - cellSize * matrix.length) / 2 + 100; // Adjust for top bar
+
+            matrix.forEach((row, i) => {
+                row.forEach((value, j) => {
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(startX + j * cellSize, startY + i * cellSize, cellSize, cellSize);
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(startX + j * cellSize, startY + i * cellSize, cellSize, cellSize);
+                    ctx.fillStyle = 'black';
+                    ctx.font = `${cellSize / 2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(value, startX + (j + 0.5) * cellSize, startY + (i + 0.5) * cellSize);
+                });
+            });
+        }
+
+        function onCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const clickedRow = Math.floor((y - startY) / cellSize);
+            const clickedCol = Math.floor((x - startX) / cellSize);
+
+            if (clickedRow >= 0 && clickedRow < matrix.length && clickedCol >= 0 && clickedCol < matrix.length) {
+                if (clickedRow === currentRow && clickedCol === currentCol) {
+                    ctx.fillStyle = '#0000ff';
+                    ctx.fillRect(startX + clickedCol * cellSize, startY + clickedRow * cellSize, cellSize, cellSize);
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(startX + clickedCol * cellSize, startY + clickedRow * cellSize, cellSize, cellSize);
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(matrix[clickedRow][clickedCol], startX + (clickedCol + 0.5) * cellSize, startY + (clickedRow + 0.5) * cellSize);
+                    
+                    if (currentLevel < maxLevels) {
+                        currentLevel++;
+                        showMessage('¡Correcto! Siguiente nivel...', false);
+                        setTimeout(initLevel, 1000);
+                    } else {
+                        showFinalMessage();
+                    }
+                } else {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.fillRect(startX + clickedCol * cellSize, startY + clickedRow * cellSize, cellSize, cellSize);
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(startX + clickedCol * cellSize, startY + clickedRow * cellSize, cellSize, cellSize);
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(matrix[clickedRow][clickedCol], startX + (clickedCol + 0.5) * cellSize, startY + (clickedRow + 0.5) * cellSize);
+                    showMessage('Elección incorrecta. Juego terminado.', true);
+                    canvas.removeEventListener('click', onCanvasClick);
+                    setTimeout(() => {
+                        restartGame();
+                        canvas.addEventListener('click', onCanvasClick);
+                    }, 2000);
+                }
+            }
+        }
+
+        function showFinalMessage() {
+            clearInterval(timerInterval);
+            const finalMessageEl = document.getElementById('finalMessage');
+            finalMessageEl.innerHTML = `
+                <h2>¡Felicidades!</h2>
+                <p>Has completado todos los niveles del juego.</p>
+                <p>Gracias por jugar.</p>
+                <button onclick="restartGame(); document.getElementById('finalMessage').style.display='none';">Jugar de nuevo</button>
+            `;
+            finalMessageEl.style.display = 'block';
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight - 100; // Adjust for top bar
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (currentLevel <= maxLevels) {
+                drawMatrix();
+            }
+        });
+
+        canvas.addEventListener('click', onCanvasClick);
+
+        resizeCanvas();
+    </script>
+</body>
+</html>

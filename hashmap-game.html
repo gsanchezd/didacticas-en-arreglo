@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Búsqueda en Hashmap Mejorado</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #gameContainer {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .topBar {
+            margin-bottom: 20px;
+        }
+        #info, #timer, #message {
+            margin: 5px 0;
+        }
+        #message {
+            font-weight: bold;
+            height: 24px;
+        }
+        #gameCanvas {
+            border: 1px solid #ddd;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #instructions, #finalMessage {
+            margin-top: 20px;
+        }
+        #finalMessage {
+            display: none;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div class="topBar">
+            <div id="info"></div>
+            <div id="timer"></div>
+            <div id="message"></div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="instructions">
+            <h2>Instrucciones - Juego de Búsqueda en Hashmap</h2>
+            <p>1. Verás una serie de pares clave-valor representando un hashmap.</p>
+            <p>2. Se te pedirá que encuentres el valor asociado a una clave específica.</p>
+            <p>3. Haz clic en la caja con el valor correcto para la clave dada.</p>
+            <p>4. Tienes 30 segundos para cada nivel.</p>
+            <p>5. Si cometes un error o se acaba el tiempo, el juego se reiniciará.</p>
+            <button onclick="startGame()">Comenzar Juego</button>
+        </div>
+        <div id="finalMessage"></div>
+    </div>
+
+    <script>
+        let canvas, ctx;
+        let hashmap = {};
+        let currentKey, timeLeft, timerInterval;
+        let currentLevel = 1;
+        const maxLevels = 5;
+
+        const possibleKeys = [
+            "manzana", "banana", "cereza", "dátil", "fresa", "guayaba", "higo", "kiwi", "limón", "mango",
+            "naranja", "pera", "uva", "sandía", "piña", "papaya", "coco", "melón", "ciruela", "durazno"
+        ];
+
+        function startGame() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            document.getElementById('instructions').style.display = 'none';
+            canvas.width = 800;
+            canvas.height = 500;
+            initLevel();
+            canvas.addEventListener('click', onCanvasClick);
+        }
+
+        function initLevel() {
+            const pairCount = currentLevel + 4; // Increase pairs with each level
+            hashmap = {};
+            const shuffledKeys = possibleKeys.sort(() => 0.5 - Math.random());
+            for (let i = 0; i < pairCount; i++) {
+                const key = shuffledKeys[i];
+                hashmap[key] = Math.floor(Math.random() * 100);
+            }
+            currentKey = Object.keys(hashmap)[Math.floor(Math.random() * pairCount)];
+            timeLeft = 30;
+            document.getElementById('info').innerHTML = `Nivel ${currentLevel}: Encuentra el valor asociado a la clave "${currentKey}"`;
+            document.getElementById('message').innerHTML = '';
+            startTimer();
+            drawHashmap();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').innerHTML = `Tiempo: ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showMessage('¡Se acabó el tiempo!', true);
+                }
+            }, 1000);
+        }
+
+        function showMessage(text, isError) {
+            const messageEl = document.getElementById('message');
+            messageEl.innerHTML = text;
+            messageEl.style.color = isError ? 'red' : 'green';
+            if (isError) {
+                setTimeout(() => {
+                    messageEl.innerHTML = '';
+                    restartGame();
+                }, 2000);
+            }
+        }
+
+        function restartGame() {
+            currentLevel = 1;
+            initLevel();
+        }
+
+        function drawHashmap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const boxWidth = 120;
+            const boxHeight = 60;
+            const padding = 20;
+            const keyBoxSpacing = 10; // New spacing between key and box
+            const pairs = Object.entries(hashmap);
+            pairs.forEach(([key, value], index) => {
+                const x = (index % 4) * (boxWidth + padding) + padding;
+                const y = Math.floor(index / 4) * (boxHeight + padding * 2 + keyBoxSpacing) + padding * 2;
+
+                // Draw key
+                ctx.fillStyle = 'black';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(key, x + boxWidth / 2, y);
+
+                // Draw box
+                ctx.fillStyle = '#4CAF50';
+                ctx.fillRect(x, y + keyBoxSpacing, boxWidth, boxHeight);
+                
+                // Draw border
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y + keyBoxSpacing, boxWidth, boxHeight);
+
+                // Draw value
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(value.toString(), x + boxWidth / 2, y + keyBoxSpacing + boxHeight / 2);
+            });
+        }
+
+        function onCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const boxWidth = 120;
+            const boxHeight = 60;
+            const padding = 20;
+            const keyBoxSpacing = 10;
+            const pairs = Object.entries(hashmap);
+            
+            for (let i = 0; i < pairs.length; i++) {
+                const boxX = (i % 4) * (boxWidth + padding) + padding;
+                const boxY = Math.floor(i / 4) * (boxHeight + padding * 2 + keyBoxSpacing) + padding * 2 + keyBoxSpacing;
+                if (x >= boxX && x <= boxX + boxWidth && y >= boxY && y <= boxY + boxHeight) {
+                    if (pairs[i][0] === currentKey) {
+                        showMessage('¡Correcto!', false);
+                        if (currentLevel < maxLevels) {
+                            currentLevel++;
+                            setTimeout(initLevel, 1000);
+                        } else {
+                            showFinalMessage();
+                        }
+                    } else {
+                        showMessage('Incorrecto. Intenta de nuevo.', true);
+                    }
+                    break;
+                }
+            }
+        }
+
+        function showFinalMessage() {
+            clearInterval(timerInterval);
+            const finalMessageEl = document.getElementById('finalMessage');
+            finalMessageEl.innerHTML = `
+                <h2>¡Felicidades!</h2>
+                <p>Has completado todos los niveles del juego de Búsqueda en Hashmap.</p>
+                <p>Gracias por jugar.</p>
+                <button onclick="restartGame(); this.parentElement.style.display='none';">Jugar de nuevo</button>
+            `;
+            finalMessageEl.style.display = 'block';
+        }
+
+        // Initialize the game when the window loads
+        window.onload = () => {
+            document.getElementById('instructions').style.display = 'block';
+        };
+    </script>
+</body>
+</html>
