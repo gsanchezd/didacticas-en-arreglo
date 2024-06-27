@@ -1,23 +1,91 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juego de Selección de Índice de Array</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-        #gameCanvas { display: block; }
-        #info, #timer, #message, #instructions, #finalMessage {
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+
+
+        #info,
+        #timer,
+        #instructions,
+        #finalMessage {
             position: absolute;
             width: 100%;
             text-align: center;
             color: black;
             z-index: 10;
         }
-        #info { top: 10px; }
-        #timer { top: 40px; font-size: 24px; }
-        #message { top: 70px; font-size: 24px; font-weight: bold; }
-        #instructions, #finalMessage {
+
+        #info {
+            top: 100px;
+            font-size: 24px;
+        }
+
+        #timer {
+            bottom: 30%;
+            font-size: 24px;
+        }
+
+        #modal {
+            display: none;
+            position: absolute;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+            height: 100vh;
+            width: 100vw;
+            background-color: lightgray;
+
+        }
+
+        #messageContainer {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 80%;
+            height: 50%;
+            background-color: white;
+
+        }
+
+        #buttonContainer {
+            display: flex;
+            flex-direction: column;
+            width: 80%;
+            gap: 10px
+        }
+
+        .modalButton {
+            width: 100%;
+            height: 30px;
+        }
+
+        #message {
+            text-align: center;
+            width: 80%;
+        }
+
+        #message>p {
+            font-size: 18px;
+            color: black
+        }
+
+        #instructions,
+        #finalMessage {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
@@ -26,17 +94,26 @@
             border-radius: 10px;
             max-width: 80%;
         }
+
         #finalMessage {
             display: none;
             font-size: 24px;
         }
     </style>
 </head>
+
 <body>
+    <div id="modal">
+        <div id="messageContainer">
+            <h2 id="message"></h2>
+            <div id="buttonContainer">
+                <button id="actionButton" class="modalButton"></button>
+                <button id="cancelButton" class="modalButton"></button>
+            </div>
+        </div>
+    </div>
     <canvas id="gameCanvas"></canvas>
     <div id="info">Selecciona el valor correcto del array por su índice</div>
-    <div id="timer"></div>
-    <div id="message"></div>
     <div id="instructions">
         <h2>Instrucciones</h2>
         <p>1. Verás una fila de cajas verdes con números.</p>
@@ -46,10 +123,27 @@
         <p>5. Si cometes un error o se acaba el tiempo, el juego se reiniciará.</p>
         <button onclick="startGame()">Comenzar Juego</button>
     </div>
+    <div id="timer"></div>
+
     <div id="finalMessage"></div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const messages = {
+            error: {
+                title: '¡Elección equivocada!',
+                subtitle: 'vuelve a intentarlo, recuerda que el índice de los arreglos comienza en el 0',
+                actionButton: 'Reintentar',
+                cancelButton: 'Volver al Menú'
+            },
+            success: {
+                title: '¡Excelente!',
+                subtitle: 'veamos si puedes seguir así en el siguiente nivel...',
+                actionButton: 'Continuar',
+                cancelButton: 'Volver al Menú'
+            }
+        }
+
         const startingSquares = 5;
         const maxLevels = 5;
         let squares = [], array = [], currentIndex, currentLevel = 1, timeLeft, timerInterval;
@@ -59,10 +153,28 @@
             resizeCanvas();
             initLevel();
         }
+        function toggleElementById(elementId, normalDisplay) {
+            const modal = document.getElementById(elementId);
+            modal.style.display = modal.style.display === normalDisplay ? 'none' : normalDisplay
+        }
+
+        function setButtons(resultCase) {
+            const actionButton = document.getElementById('actionButton');
+            const cancelButton = document.getElementById('cancelButton');
+            console.log('resultCase: ', resultCase)
+
+            actionButton.innerHTML = messages[resultCase].actionButton
+            cancelButton.innerHTML = messages[resultCase].cancelButton
+
+            actionButton.onclick = resultCase === 'success' ? () => { toggleElementById('modal', 'flex'); initLevel() } : () => { toggleElementById('modal', 'flex'); restartGame() }
+            cancelButton.onclick = goToMenu
+
+
+        }
 
         function initLevel() {
             const squareCount = startingSquares + currentLevel - 1;
-            array = Array.from({length: squareCount}, () => Math.floor(Math.random() * 10));
+            array = Array.from({ length: squareCount }, () => Math.floor(Math.random() * 10));
             currentIndex = Math.floor(Math.random() * array.length);
             timeLeft = 30;
 
@@ -78,14 +190,16 @@
                 color: '#00ff00'
             }));
 
+
             document.getElementById('info').innerHTML = `Nivel ${currentLevel}: Encuentra el valor en el índice ${currentIndex}`;
             document.getElementById('message').innerHTML = '';
-            startTimer();
             drawSquares();
+            startTimer();
         }
 
         function startTimer() {
-            clearInterval(timerInterval);
+            clearTimer()
+            toggleElementById('timer', 'block')
             timerInterval = setInterval(() => {
                 timeLeft--;
                 document.getElementById('timer').innerHTML = `Tiempo: ${timeLeft}s`;
@@ -96,21 +210,26 @@
             }, 1000);
         }
 
+        function clearTimer() {
+            clearInterval(timerInterval);
+        }
+
         function showMessage(text, isError) {
+            clearTimer()
+            setButtons(isError ? 'error' : 'success')
+            toggleElementById('modal', 'flex')
+            toggleElementById('timer', 'block')
             const messageEl = document.getElementById('message');
             messageEl.innerHTML = text;
             messageEl.style.color = isError ? 'red' : 'green';
-            if (isError) {
-                setTimeout(() => {
-                    messageEl.innerHTML = '';
-                    restartGame();
-                }, 2000);
-            }
         }
 
         function restartGame() {
             currentLevel = 1;
             initLevel();
+        }
+        function goToMenu() {
+            location.href = ""
         }
 
         function drawSquares() {
@@ -118,6 +237,8 @@
             squares.forEach(square => {
                 ctx.fillStyle = square.color;
                 ctx.fillRect(square.x, square.y, square.size, square.size);
+                ctx.strokeStyle = 'black';
+                ctx.strokeRect(square.x, square.y, square.size, square.size);
                 ctx.fillStyle = 'black';
                 ctx.font = `${square.size / 2}px Arial`;
                 ctx.textAlign = 'center';
@@ -130,7 +251,7 @@
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
-            
+
             squares.forEach((square, index) => {
                 if (x > square.x && x < square.x + square.size && y > square.y && y < square.y + square.size) {
                     if (index === currentIndex) {
@@ -138,20 +259,23 @@
                         drawSquares();
                         if (currentLevel < maxLevels) {
                             currentLevel++;
-                            showMessage('¡Correcto! Siguiente nivel...', false);
-                            setTimeout(initLevel, 1000);
+                            showMessage(`<h2>
+                            ${messages.success.title}
+                                </h2>
+                                <p>${messages.success.subtitle}</p>`
+                                , false);
+
                         } else {
                             showFinalMessage();
                         }
                     } else {
                         square.color = '#ff0000';
                         drawSquares();
-                        showMessage('Elección incorrecta. Juego terminado.', true);
-                        canvas.removeEventListener('click', onCanvasClick);
-                        setTimeout(() => {
-                            restartGame();
-                            canvas.addEventListener('click', onCanvasClick);
-                        }, 2000);
+                        showMessage(`<h2>
+                            ${messages.error.title}
+                            </h2>
+                            <p>${messages.error.subtitle}</p>`, true);
+
                     }
                 }
             });
@@ -171,7 +295,7 @@
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            canvas.height = window.innerHeight * 0.6;
         }
 
         window.addEventListener('resize', () => {
@@ -184,6 +308,9 @@
         canvas.addEventListener('click', onCanvasClick);
 
         resizeCanvas();
+
+
     </script>
 </body>
+
 </html>
